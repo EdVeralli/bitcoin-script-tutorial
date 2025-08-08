@@ -1,79 +1,142 @@
+# Ciclo Completo - Smart Contract Bitcoin Script
 
+## Introducción
 
-# Ver en web
+Este documento contiene **todos los comandos que funcionaron exitosamente** desde el inicio hasta la finalización completa del smart contract Bitcoin Script. Incluye tanto la FASE 1 (funding del contrato) como la FASE 2 (gasto y revelación), con **valores reales** utilizados.
+
+---
+
+## Estado Inicial - Verificaciones Previas
+
+### Verificar sincronización de Bitcoin Core:
+
+```bash
+bitcoin-cli -testnet getblockchaininfo | grep verificationprogress
+```
+
+**Resultado requerido:** `>= 0.95` (95% o más sincronizado)  
+**Resultado obtenido:** `0.9999919937024108` ✅
+
+### Verificar fondos disponibles:
+
+```bash
+bitcoin-cli -testnet getbalance
+```
+
+**Resultado obtenido:** `0.00197000`
+
+### Ver detalles de fondos recibidos del faucet: ( ultimas 10 transacciones )
+
+```bash
+bitcoin-cli -testnet listtransactions "*" 10
+```
+
+**Resultado confirmó:**
+- ✅ Recepción del faucet: 0.00197000 BTC
+- ✅ Dirección: `tb1qx04jp925z3f99rkxv9wrv3ngs5x7fpjnq7tf4a`
+- ✅ Confirmaciones: 37,767
+
+---
+
+## FASE 1: Funding del Smart Contract
+
+### 1. Verificar fee estimado:
+
+```bash
+bitcoin-cli -testnet estimatesmartfee 1
+```
+
+**Resultado obtenido:**
+```json
+{
+  "feerate": 0.00001090,
+  "blocks": 2
+}
+```
+
+### 2. Ver configuración de wallet:
+
+```bash
+bitcoin-cli -testnet getwalletinfo
+```
+
+**Confirmó:**
+- ✅ Wallet: "helloworld"
+- ✅ Balance: 0.00197000 BTC
+- ✅ Wallet desbloqueada y funcional
+
+### 3. **COMANDO HISTÓRICO - Envío de fondos al contrato:**
+
+```bash
+bitcoin-cli -testnet sendtoaddress "2NE58e9bQeGMtQv1cWLDAupviC2g3Y96856" 0.001
+```
+
+**🎉 RESULTADO EXITOSO:**
+```
+55420821971d76018d1da7913c497a55bad2f642fb4fb33b2a7e4748f862ad72
+```
+
+### 4. Verificar nuevo saldo post-envío:
+
+```bash
+bitcoin-cli -testnet getbalance
+```
+
+**Resultado obtenido:** `0.00096844`
+
+**Cálculo verificado:**
+```
+Saldo inicial: 0.00197000 BTC
+Enviado: -0.00100000 BTC
+Fee: -0.00000156 BTC
+Saldo final: 0.00096844 BTC ✅
+```
+
+### 5. Ver detalles de la transacción de funding:
+
+```bash
+bitcoin-cli -testnet gettransaction 55420821971d76018d1da7913c497a55bad2f642fb4fb33b2a7e4748f862ad72
+```
+
+**Confirmó:**
+- ✅ Amount: -0.00100000 (enviado)
+- ✅ Fee: -0.00000156 (156 satoshis)
+- ✅ Address: `2NE58e9bQeGMtQv1cWLDAupviC2g3Y96856`
+- ✅ VOUT: 1
+- ✅ Confirmaciones: 24+ (y creciendo)
+
+---
+
+## Verificación en Explorador Blockchain (FASE 1)
+
+### Verificar contrato en explorador web:
+
+**URL del contrato:**
 ```
 https://blockstream.info/testnet/address/2NE58e9bQeGMtQv1cWLDAupviC2g3Y96856
 ```
 
+**Estado confirmado:**
+- ✅ Balance: 0.001 tBTC
+- ✅ Confirmed TX Count: 1
+- ✅ Confirmed Received: 1 outputs (0.0010000 tBTC)
+- ✅ Confirmed Unspent: 1 outputs (0.0010000 tBTC)
 
-# Muestra hasta 10 transacciones más recientes
+**URL de la transacción de funding:**
 ```
-bitcoin-cli -testnet listtransactions "*" 10
-```
-
-# Crear dirección nueva para recibir los fondos liberados
-```
-bitcoin-cli -testnet getnewaddress "recovered" "bech32"
-│─────────────────│ │───────────│ │────────│  │──────│
-│                 │ │           │ │        │  │      │
-│ Cliente + Red   │ │ Comando   │ │ Label  │  │ Tipo │
-└─────────────────┘ └───────────┘ └────────┘  └──────┘
-```
-Nueva Direccion---> tb1qfg0uhn0k5ln09x9tl6m5spkghj4fu6sx2a6p4j
-
-
-
-# Crear transacción para gastar el UTXO. ( aun falta firmar y sacarlo  )
-```
-bitcoin-cli -testnet createrawtransaction \
-'[{"txid":"55420821971d76018d1da7913c497a55bad2f642fb4fb33b2a7e4748f862ad72","vout":1}]' \
-'{"tb1qfg0uhn0k5ln09x9tl6m5spkghj4fu6sx2a6p4j":0.0009}'
-```
---> Me devuelve la transaccion que hice en mi compu, NO esta subida a la blockchain !!!!
-020000000172ad62f848477e2a3bb34ffb42f6d2ba557a493c91a71d8d01761d97210842550100000000fdffffff01905f0100000000001600144a1fcbcdf6a7e6f298abfeb74806c8bcaa9e6a0600000000
-
-
-# Para ver mi transaccion vacia localmente
-```
-bitcoin-cli -testnet decoderawtransaction '020000000172ad62f848477e2a3bb34ffb42f6d2ba557a493c91a71d8d01761d97210842550100000000fdffffff01905f0100000000001600144a1fcbcdf6a7e6f298abfeb74806c8bcaa9e6a0600000000'
+https://blockstream.info/testnet/tx/55420821971d76018d1da7913c497a55bad2f642fb4fb33b2a7e4748f862ad72
 ```
 
-Me muestra esto:
-```
-{
-  "txid": "1838cc9adc60b487dfe24b3eec8bdaf6df3f0f6e07c591df4249a4ba5238ba81",
-  "hash": "1838cc9adc60b487dfe24b3eec8bdaf6df3f0f6e07c591df4249a4ba5238ba81",
-  "version": 2,
-  "size": 82,
-  "vsize": 82,
-  "weight": 328,
-  "locktime": 0,
-  "vin": [
-    {
-      "txid": "55420821971d76018d1da7913c497a55bad2f642fb4fb33b2a7e4748f862ad72",
-      "vout": 1,
-      "scriptSig": {
-        "asm": "",
-        "hex": ""
-      },
-      "sequence": 4294967293
-    }
-  ],
-  "vout": [
-    {
-      "value": 0.00090000,
-      "n": 0,
-      "scriptPubKey": {
-        "asm": "0 4a1fcbcdf6a7e6f298abfeb74806c8bcaa9e6a06",
-        "desc": "addr(tb1qfg0uhn0k5ln09x9tl6m5spkghj4fu6sx2a6p4j)#n7f3v0at",
-        "hex": "00144a1fcbcdf6a7e6f298abfeb74806c8bcaa9e6a06",
-        "address": "tb1qfg0uhn0k5ln09x9tl6m5spkghj4fu6sx2a6p4j",
-        "type": "witness_v0_keyhash"
-      }
-    }
-  ]
-}
-```
+---
+
+------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
+
+----------------------------------------------------------------------------
+----------------------------------------------------------------------------
+----------------------------------------------------------------------------
+
 
 
 # Ahora toca ejecutar el RedeemScript
@@ -129,6 +192,17 @@ Este documento contiene **únicamente los comandos que funcionaron** durante la 
 bitcoin-cli -testnet getnewaddress "recovered" "bech32"
 ```
 
+```
+bitcoin-cli -testnet getnewaddress "recovered" "bech32"
+│─────────────────│ │───────────│ │────────│  │──────│
+│                 │ │           │ │        │  │      │
+│ Cliente + Red   │ │ Comando   │ │ Label  │  │ Tipo │
+└─────────────────┘ └───────────┘ └────────┘  └──────┘
+```
+Nueva Direccion---> tb1qfg0uhn0k5ln09x9tl6m5spkghj4fu6sx2a6p4j
+
+
+
 **Resultado obtenido:**
 ```
 tb1qfg0uhn0k5ln09x9tl6m5spkghj4fu6sx2a6p4j
@@ -145,6 +219,9 @@ bitcoin-cli -testnet createrawtransaction \
 '[{"txid":"55420821971d76018d1da7913c497a55bad2f642fb4fb33b2a7e4748f862ad72","vout":1}]' \
 '{"tb1qfg0uhn0k5ln09x9tl6m5spkghj4fu6sx2a6p4j":0.0009}'
 ```
+--> Me devuelve la transaccion que hice en mi compu, NO esta subida a la blockchain !!!!
+020000000172ad62f848477e2a3bb34ffb42f6d2ba557a493c91a71d8d01761d97210842550100000000fdffffff01905f0100000000001600144a1fcbcdf6a7e6f298abfeb74806c8bcaa9e6a0600000000
+
 
 **Resultado obtenido:**
 ```
@@ -160,7 +237,42 @@ bitcoin-cli -testnet createrawtransaction \
 ```bash
 bitcoin-cli -testnet decoderawtransaction '020000000172ad62f848477e2a3bb34ffb42f6d2ba557a493c91a71d8d01761d97210842550100000000fdffffff01905f0100000000001600144a1fcbcdf6a7e6f298abfeb74806c8bcaa9e6a0600000000'
 ```
-
+Me muestra esto:
+```
+{
+  "txid": "1838cc9adc60b487dfe24b3eec8bdaf6df3f0f6e07c591df4249a4ba5238ba81",
+  "hash": "1838cc9adc60b487dfe24b3eec8bdaf6df3f0f6e07c591df4249a4ba5238ba81",
+  "version": 2,
+  "size": 82,
+  "vsize": 82,
+  "weight": 328,
+  "locktime": 0,
+  "vin": [
+    {
+      "txid": "55420821971d76018d1da7913c497a55bad2f642fb4fb33b2a7e4748f862ad72",
+      "vout": 1,
+      "scriptSig": {
+        "asm": "",
+        "hex": ""
+      },
+      "sequence": 4294967293
+    }
+  ],
+  "vout": [
+    {
+      "value": 0.00090000,
+      "n": 0,
+      "scriptPubKey": {
+        "asm": "0 4a1fcbcdf6a7e6f298abfeb74806c8bcaa9e6a06",
+        "desc": "addr(tb1qfg0uhn0k5ln09x9tl6m5spkghj4fu6sx2a6p4j)#n7f3v0at",
+        "hex": "00144a1fcbcdf6a7e6f298abfeb74806c8bcaa9e6a06",
+        "address": "tb1qfg0uhn0k5ln09x9tl6m5spkghj4fu6sx2a6p4j",
+        "type": "witness_v0_keyhash"
+      }
+    }
+  ]
+}
+```
 **Resultado confirmó:**
 - ✅ Input válido: TXID correcto y vout 1
 - ✅ Output válido: 0.0009 BTC a dirección correcta
