@@ -4,6 +4,37 @@
 
 Este documento contiene **todos los comandos que funcionaron exitosamente** desde el inicio hasta la finalización completa del smart contract Bitcoin Script. Incluye tanto la FASE 1 (funding del contrato) como la FASE 2 (gasto y revelación), con **valores reales** utilizados.
 
+### Ubuntu
+---
+# Descargar la última versión
+cd ~/Downloads
+wget https://bitcoincore.org/bin/bitcoin-core-25.0/bitcoin-25.0-x86_64-linux-gnu.tar.gz
+
+# Verificar (opcional pero recomendado)
+wget https://bitcoincore.org/bin/bitcoin-core-25.0/SHA256SUMS
+
+# Extraer
+tar -xzf bitcoin-25.0-x86_64-linux-gnu.tar.gz
+
+# Copiar binarios al sistema
+sudo cp bitcoin-25.0/bin/* /usr/local/bin/
+
+# Verificar instalación
+bitcoin-cli --version
+---
+
+### Mac OS
+
+---
+# Instalar Homebrew si no lo tienes
+/bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+# Instalar Bitcoin Core
+brew install bitcoin
+
+---
+
+
 ---
 
 ## Estado Inicial - Verificaciones Previas
