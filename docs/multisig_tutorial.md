@@ -58,6 +58,221 @@ TXID de éxito 🎉 (paso 13)
 
 ## 🛠️ Implementación Práctica: 2-of-3 MultiSig
 
+## ⚙️ **FASE 0: Preparación del Entorno**
+
+### **VERIFICACIONES INICIALES OBLIGATORIAS**
+
+Antes de empezar con MultiSig, asegúrate de que tu entorno esté correctamente configurado:
+
+- ✅ **Bitcoin Core instalado y funcionando**
+- ✅ **Daemon bitcoind corriendo**
+- ✅ **Nodo sincronizado** (>99%)
+- ✅ **Wallet creado y cargado**
+- ✅ **Fondos disponibles** (mínimo 0.002 tBTC)
+
+---
+
+### **PASO 0.0: Iniciar Bitcoin Core Daemon**
+
+#### Verificar si bitcoind ya está corriendo:
+```bash
+bitcoin-cli -testnet getblockchaininfo
+```
+
+**Si obtienes un error de conexión:**
+```
+error: Could not connect to the server 127.0.0.1:18332
+
+Make sure the bitcoind server is running and that you are connecting to the correct RPC port.
+```
+
+#### Iniciar el daemon en testnet:
+```bash
+bitcoind -testnet -daemon
+```
+
+**Resultado esperado:**
+```
+Bitcoin Core starting
+```
+
+#### Verificar que está corriendo correctamente:
+```bash
+# Debería responder sin errores después de unos segundos
+bitcoin-cli -testnet getblockchaininfo | head -5
+```
+
+**🔥 IMPORTANTE:** 
+- El daemon puede tardar **10-30 segundos** en estar completamente listo
+- Si el comando anterior falla, espera un momento y vuelve a intentar
+- En la primera ejecución, comenzará a descargar la blockchain de testnet
+
+---
+
+### **PASO 0.1: Verificar Sincronización del Nodo**
+
+```bash
+# Verificar que el nodo está sincronizado
+bitcoin-cli -testnet getblockchaininfo | grep verificationprogress
+```
+
+**Resultado esperado:**
+```
+"verificationprogress": 0.999... o 1.0
+```
+
+**🚨 Si está por debajo de 0.99:**
+```bash
+# Monitorear progreso cada 30 segundos
+watch -n 30 "bitcoin-cli -testnet getblockchaininfo | grep verificationprogress"
+```
+
+**⏳ Espera hasta que `verificationprogress` sea ≥ 0.999 antes de continuar**
+
+---
+
+### **PASO 0.2: Preparar el Wallet**
+
+#### Verificar si hay wallet cargado:
+```bash
+bitcoin-cli -testnet listwallets
+```
+
+**Resultado si NO hay wallet:**
+```json
+[]
+```
+
+#### Si está vacío, crear wallet nuevo:
+```bash
+bitcoin-cli -testnet createwallet "multisig_tutorial"
+```
+
+**Resultado esperado:**
+```json
+{
+  "name": "multisig_tutorial",
+  "warning": ""
+}
+```
+
+#### Verificar que el wallet está funcionando:
+```bash
+# Ver información del wallet
+bitcoin-cli -testnet getwalletinfo
+
+# Verificar saldo inicial (debería ser 0)
+bitcoin-cli -testnet getbalance
+```
+
+**Resultado esperado del saldo:**
+```
+0.00000000
+```
+
+---
+
+### **PASO 0.3: Conseguir Fondos de Testnet**
+
+#### Crear dirección para recibir fondos del faucet:
+```bash
+bitcoin-cli -testnet getnewaddress "faucet" "bech32"
+```
+
+**Resultado esperado:**
+```
+tb1qd0apye72kj4xy5n35n4sxddcm507k9ea08fqsz
+```
+**💡 Esta dirección es la Posta de mi Ubuntu**
+
+**🔥 IMPORTANTE: Copia esta dirección exactamente como aparece**
+
+#### Solicitar fondos en faucets de testnet:
+
+**Opción 1 (Recomendado):**
+- 🌐 **https://coinfaucet.eu/en/btc-testnet/**
+- Pegar tu dirección y solicitar fondos
+- Cantidad típica: ~0.001-0.01 tBTC
+
+**Opciones adicionales:**
+- 🌐 **https://testnet-faucet.mempool.co/**
+- 🌐 **https://bitcoinfaucet.uo1.net/**
+
+#### Verificar que llegaron los fondos:
+```bash
+# Ver transacciones recientes
+bitcoin-cli -testnet listtransactions "*" 10
+
+# Verificar saldo actualizado
+bitcoin-cli -testnet getbalance
+```
+
+**Resultado esperado después de recibir fondos:**
+```json
+// En listtransactions verás algo como:
+{
+  "address": "tb1q...",
+  "category": "receive",
+  "amount": 0.01000000,
+  "confirmations": 1,
+  "txid": "abc123def456..."
+}
+```
+
+```bash
+// En getbalance verás:
+0.01000000
+```
+
+#### Verificar en explorador de bloques (opcional):
+```bash
+# Abrir en navegador para verificar visualmente
+https://blockstream.info/testnet/address/TU_DIRECCION_DEL_FAUCET
+```
+
+---
+
+### **PASO 0.4: Verificación Final Antes de MultiSig**
+
+```bash
+# 1. Confirmar que todo está listo
+bitcoin-cli -testnet getwalletinfo | grep walletname
+bitcoin-cli -testnet getbalance
+
+# 2. Verificar fondos mínimos necesarios
+# Necesitas AL MENOS:
+# - 0.001 tBTC para enviar al multisig
+# - 0.0002 tBTC para fees estimados
+# - Total recomendado: 0.002 tBTC o más
+```
+
+**✅ CRITERIOS PARA CONTINUAR:**
+- Wallet cargado ✓
+- Saldo ≥ 0.002 tBTC ✓
+- Al menos 1 confirmación en las transacciones recibidas ✓
+
+**🚨 Si no tienes fondos suficientes:**
+- Solicita más fondos en otros faucets
+- Espera a que confirmen las transacciones pendientes
+- Verifica que usaste la dirección correcta
+
+---
+
+### **⏳ Tiempos de Espera Típicos:**
+
+- **Sincronización inicial**: 2-6 horas (primera vez)
+- **Fondos del faucet**: 10-60 minutos
+- **Confirmaciones**: ~10 minutos por confirmación
+
+**🔄 UNA VEZ COMPLETADA LA FASE 0, CONTINÚA CON:**
+**[FASE 1: Generar las 3 Claves]**
+
+---
+
+
+
+
+
 ### **FASE 1: Generar las 3 Claves**
 
 #### 1. Crear 3 direcciones diferentes para simular 3 usuarios:
