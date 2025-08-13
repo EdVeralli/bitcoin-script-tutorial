@@ -59,6 +59,14 @@ TXID de éxito 🎉 (paso 13)
 ## 🛠️ Implementación Práctica: 2-of-3 MultiSig
 
 ## ⚙️ **FASE 0: Preparación del Entorno**
+```mermaid
+graph TD
+    A[Reinicio del nodo] --> B{¿Billeteras cargadas?}
+    B -->|No| C[Listar wallets con listwalletdir]
+    C --> D[Cargar con loadwallet]
+    D --> E[Operar normalmente]
+    B -->|Sí| E
+```
 
 ### **VERIFICACIONES INICIALES OBLIGATORIAS**
 
