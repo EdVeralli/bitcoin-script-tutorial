@@ -277,10 +277,6 @@ bitcoin-cli -testnet getbalance
 
 ---
 
-
-
-
-
 ### **FASE 1: Generar las 3 Claves**
 
 #### 1. Crear 3 direcciones diferentes para simular 3 usuarios:
@@ -445,8 +441,10 @@ bitcoin-cli -testnet gettransaction "TXID_FUNDING"
 
 ---
 
-###  PONER COMO SE PUEDE VER DESDE EL BROWSER LA TRANSACCION 
+### **PONER COMO SE PUEDE VER DESDE EL BROWSER LA TRANSACCION**
+```
 https://blockstream.info/testnet/tx/ecf15992ee1426f5b9d32baa8bf85e0e628e5dab0a1f4ff730db91d47c04656b
+```
 
 ### **FASE 3: Gastar desde MultiSig (¡Lo Interesante!)**
 
@@ -471,7 +469,7 @@ bitcoin-cli -testnet createrawtransaction \
 ```
 
 **🔥 IMPORTANTE: Guarda este resultado:**
-***  Esto esta en la maquina Local... aun no esta en la blockchain cuando este firmada !!!!
+**Esto está en la máquina Local... aún no está en la blockchain ¡cuando esté firmada!**
 - Es tu **RAW_TRANSACTION** (para el paso 11)
 
 **Ejemplo con datos ficticios:**
@@ -483,25 +481,44 @@ bitcoin-cli -testnet createrawtransaction \
 
 #### 10. Obtener el scriptPubKey del multisig:
 
+**Método 1 (Si tienes -txindex habilitado):**
 ```bash
-# Necesitas este dato para firmar - obtenerlo así:
-bitcoin-cli -testnet gettransaction "TXID_FUNDING" true
+bitcoin-cli -testnet getrawtransaction "TXID_FUNDING" true
 ```
 
-**En el resultado busca la sección `"vout"` y encuentra:**
+**Método 2 (Con blockhash - recomendado):**
+```bash
+# Primero obtén el blockhash de tu transacción
+bitcoin-cli -testnet gettransaction "TXID_FUNDING"
+# Busca el campo "blockhash" en el resultado
+
+# Luego usa ese blockhash:
+bitcoin-cli -testnet getrawtransaction "TXID_FUNDING" true "BLOCKHASH_OBTENIDO"
+```
+
+**Ejemplo con datos reales:**
+```bash
+# Si tu blockhash es 00000000000002d0...
+bitcoin-cli -testnet getrawtransaction "ecf15992ee1426f5b9d32baa8bf85e0e628e5dab0a1f4ff730db91d47c04656b" true "00000000000002d02b4565e9cfd1402d7a55247629f2ef1046835403db9f0404"
+```
+
+**En el resultado busca el vout que coincida con tu VOUT_NUMBER:**
 ```json
 "vout": [
   {
     "value": 0.00100000,
-    "n": 1,                     // ← Confirma que coincide con tu VOUT
+    "n": 1,                     // ← Debe coincidir con tu VOUT_NUMBER
     "scriptPubKey": {
-      "hex": "a914...",          // ← ESTE ES TU SCRIPT_PUB_KEY
+      "hex": "a914d6d3ca7886eccbd879775a429f1af9793bfac24b87",  // ← ¡COPIA ESTE HEX!
       "type": "scripthash",
-      "address": "2N..."         // ← Confirma que es tu multisig
+      "address": "2NCq8JpqBg3xhgkqdL5Mjs3RG8CxtYs1k7b"           // ← Confirma tu multisig
     }
   }
 ]
 ```
+
+**🔥 IMPORTANTE: Guarda este valor:**
+- `"hex"`: Es tu **SCRIPT_PUB_KEY_HEX** (para los pasos 11-12)
 
 #### 11. Firmar con la primera clave (Alice):
 
@@ -539,7 +556,7 @@ bitcoin-cli -testnet signrawtransactionwithwallet \
 ```
 
 **🔥 IMPORTANTE: Guarda el campo `"hex"`:**
-- `"hex"`: Es tu **RESULTADO_FIRMA_ALICE** (para el paso 11)
+- `"hex"`: Es tu **RESULTADO_FIRMA_ALICE** (para el paso 12)
 - `"complete": false`: Necesita más firmas
 
 #### 12. Firmar con la segunda clave (Bob):
