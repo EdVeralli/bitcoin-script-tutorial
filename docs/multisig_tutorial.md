@@ -445,6 +445,9 @@ bitcoin-cli -testnet gettransaction "TXID_FUNDING"
 
 ---
 
+###  PONER COMO SE PUEDE VER DESDE EL BROWSER LA TRANSACCION 
+https://blockstream.info/testnet/tx/ecf15992ee1426f5b9d32baa8bf85e0e628e5dab0a1f4ff730db91d47c04656b
+
 ### **FASE 3: Gastar desde MultiSig (¡Lo Interesante!)**
 
 #### 8. Crear dirección destino para los fondos:
