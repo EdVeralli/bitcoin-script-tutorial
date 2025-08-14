@@ -471,6 +471,7 @@ bitcoin-cli -testnet createrawtransaction \
 ```
 
 **🔥 IMPORTANTE: Guarda este resultado:**
+***  Esto esta en la maquina Local... aun no esta en la blockchain cuando este firmada !!!!
 - Es tu **RAW_TRANSACTION** (para el paso 11)
 
 **Ejemplo con datos ficticios:**
