@@ -1,34 +1,49 @@
-# Tutorial Bitcoin MultiSig Híbrido - Bitcoin Core + JavaScript
+# Tutorial MultiSig Bitcoin Híbrido - VERSIÓN FINAL FUNCIONAL
 
-**Enfoque Híbrido: Bitcoin Core para infraestructura + JavaScript para operaciones MultiSig**
+**Enfoque Híbrido: Bitcoin Core + JavaScript para MultiSig 2-of-3 completo**
 
 Funciona con nodo pruneado: `prune=2000` (solo 2GB de blockchain)
 
+## Qué Aprenderás
+
+Este tutorial te enseña a crear y usar un MultiSig Bitcoin 2-of-3 (se necesitan 2 firmas de 3 posibles) usando un enfoque híbrido que combina:
+- **Bitcoin Core**: Para infraestructura de red y gestión de fondos básicos
+- **JavaScript**: Para operaciones MultiSig SegWit avanzadas
+- **Procedimientos manuales**: Para situaciones donde la automatización falla
+
 ## Tabla de Contenidos
 
-1. [Configuración Inicial](#configuración-inicial)
+1. [Configuración del Entorno](#configuración-del-entorno)
 2. [Configuración JavaScript](#configuración-javascript)
-3. [Creación del MultiSig con JavaScript](#creación-del-multisig-con-javascript)
-4. [Funding con Bitcoin Core](#funding-con-bitcoin-core)
-5. [Gasto con JavaScript](#gasto-con-javascript)
-6. [Verificación Final](#verificación-final)
-7. [Comandos de Referencia](#comandos-de-referencia)
+3. [Creación del MultiSig](#creación-del-multisig)
+4. [Obtención de Fondos](#obtención-de-fondos)
+5. [Envío al MultiSig](#envío-al-multisig)
+6. [Identificación del UTXO](#identificación-del-utxo)
+7. [Gasto desde MultiSig](#gasto-desde-multisig)
+8. [Verificación Final](#verificación-final)
+9. [Uso en Producción](#uso-en-producción)
 
-## Configuración Inicial
+## Configuración del Entorno
+
+### Qué estamos haciendo
+Configuramos un nodo Bitcoin en testnet (red de pruebas) con mode prune para ahorrar espacio en disco. Este nodo nos permitirá interactuar con la red Bitcoin sin usar dinero real.
 
 ### 1. Configurar Bitcoin Core
 
-Crear/editar el archivo `~/.bitcoin/bitcoin.conf`:
-
 ```bash
-# Archivo: ~/.bitcoin/bitcoin.conf
+# Crear/editar archivo de configuración
+nano ~/.bitcoin/bitcoin.conf
+```
+
+Agregar este contenido:
+```
 testnet=1
 server=1
 rpcuser=tu_usuario
 rpcpassword=tu_password_segura
-prune=2000                # Solo 2GB de espacio
-fallbackfee=0.00001       # Crucial para testnet
-maxconnections=40         # Optimizar para prune
+prune=2000
+fallbackfee=0.00001
+maxconnections=40
 ```
 
 ### 2. Iniciar Bitcoin Core
@@ -37,19 +52,19 @@ maxconnections=40         # Optimizar para prune
 # Detener si está corriendo
 bitcoin-cli -testnet stop 2>/dev/null; sleep 5
 
-# Iniciar con prune
+# Iniciar con configuración pruneada
 bitcoind -testnet -daemon -prune=2000 -fallbackfee=0.00001
 echo "Iniciando nodo pruneado..."
 sleep 60
 
-# Verificar estado
+# Verificar estado (debe mostrar progreso cerca del 100%)
 bitcoin-cli -testnet getblockchaininfo | grep -E "(blocks|verificationprogress|pruned)"
 ```
 
-### 3. Crear Wallet Simple para Fondos
+### 3. Crear Wallet para Fondos
 
 ```bash
-# Crear wallet básico para recibir fondos de faucet
+# Crear wallet básico para manejar fondos del faucet
 bitcoin-cli -testnet createwallet "funds_wallet" false false "" false false
 
 # Verificar que funciona
@@ -57,122 +72,143 @@ bitcoin-cli -testnet getwalletinfo | grep -E "(balance|txcount)"
 echo "Wallet para fondos creado exitosamente"
 ```
 
+**Verificación**: Debes ver información del wallet sin errores.
+
 ## Configuración JavaScript
+
+### Qué estamos haciendo
+Instalamos Node.js y las bibliotecas necesarias para manejar operaciones criptográficas de Bitcoin. JavaScript nos permitirá crear y firmar transacciones MultiSig que Bitcoin Core no puede manejar nativamente.
 
 ### 1. Instalar Dependencias
 
 ```bash
-# Verificar Node.js (necesario version 12+)
+# Verificar Node.js
 node --version
 npm --version
 
-# Crear directorio para el proyecto
+# Si no están instalados
+sudo apt install nodejs npm curl
+
+# Crear directorio del proyecto
 mkdir bitcoin-multisig-hybrid
 cd bitcoin-multisig-hybrid
 
-# Inicializar proyecto Node.js
+# Inicializar proyecto
 npm init -y
 
-# Instalar bitcoinjs-lib
-npm install bitcoinjs-lib
-
-echo "Dependencias instaladas correctamente"
+# Instalar bitcoinjs-lib compatible con Node.js 12+
+npm install bitcoinjs-lib@5.2.0
 ```
 
-### 2. Descargar Scripts JavaScript
+### 2. Crear Scripts JavaScript
 
-Crear los tres archivos JavaScript necesarios:
-- `multisig.js` - Script principal para operaciones MultiSig
-- `bitcoin-helper.js` - Interfaz con Bitcoin Core
-- `verify.js` - Verificación y troubleshooting
+Crear tres archivos usando los artifacts proporcionados:
+- `multisig.js` - Operaciones MultiSig principales
+- `bitcoin-helper.js` - Interfaz con Bitcoin Core  
+- `verify.js` - Verificación y diagnóstico
 
 ```bash
-# Hacer archivos ejecutables
+# Hacer ejecutables
 chmod +x multisig.js bitcoin-helper.js verify.js
 
 # Verificar que funcionan
 node verify.js quick
 ```
 
-## Creación del MultiSig con JavaScript
+**Verificación**: Debe mostrar estado de Bitcoin Core sin errores.
 
-### 1. Generar Claves y Crear MultiSig
+## Creación del MultiSig
+
+### Qué estamos haciendo
+Generamos 3 pares de claves criptográficas y creamos una dirección MultiSig 2-of-3. Esto significa que necesitaremos 2 de las 3 claves para gastar fondos, proporcionando seguridad adicional.
+
+### 1. Generar Claves y MultiSig
 
 ```bash
-# Generar 3 claves para MultiSig 2-of-3 y crear dirección SegWit
+# Generar 3 claves y crear MultiSig P2WSH (SegWit)
 node multisig.js generate
-
-# El script mostrará:
-# - 3 claves privadas (WIF format)
-# - 3 claves públicas (hex)
-# - 3 direcciones individuales
-# - Dirección MultiSig P2WSH
-# - WitnessScript
 
 # Verificar que se crearon los archivos
 ls -la keys.json multisig.json
 
-# Mostrar solo la dirección MultiSig
+# Obtener dirección MultiSig para uso posterior
 MULTISIG_ADDR=$(node multisig.js address)
-echo "Dirección MultiSig: $MULTISIG_ADDR"
+echo "Tu dirección MultiSig: $MULTISIG_ADDR"
 ```
 
-### 2. Verificar Estado del Sistema
+**Qué sucede**: El script genera 3 claves privadas/públicas, crea un script MultiSig 2-of-3, y produce una dirección SegWit (empieza con tb1q...). Los archivos JSON guardan esta información para uso posterior.
 
-```bash
-# Verificación completa del sistema híbrido
-node verify.js
+**Verificación**: Debes ver 3 conjuntos de claves, una dirección MultiSig tb1q..., y archivos JSON creados.
 
-# Verificación rápida
-node verify.js quick
+## Obtención de Fondos
 
-# Ver tutorial paso a paso
-node verify.js tutorial
-```
+### Qué estamos haciendo
+Necesitamos fondos de testnet (bitcoins de prueba sin valor real) para demostrar el MultiSig. Usamos "faucets" - sitios web que regalan pequeñas cantidades de bitcoin de testnet.
 
-## Funding con Bitcoin Core
-
-### 1. Obtener Fondos de Faucet
+### 1. Crear Dirección para Faucet
 
 ```bash
 # Generar dirección para recibir fondos del faucet
-FAUCET_ADDR=$(node bitcoin-helper.js address faucet)
+FAUCET_ADDR=$(bitcoin-cli -testnet getnewaddress "faucet" "bech32")
 echo "Envía tBTC a esta dirección: $FAUCET_ADDR"
 
 echo "Usar estos faucets:"
 echo "- https://coinfaucet.eu/en/btc-testnet/"
 echo "- https://testnet-faucet.mempool.co/"
 echo "- https://bitcoinfaucet.uo1.net/"
+```
 
-# Monitorear balance
-echo "Monitoreando balance..."
+### 2. Monitorear Fondos
+
+```bash
+# Verificar balance hasta que lleguen fondos
 while true; do
-    BALANCE=$(node bitcoin-helper.js balance)
+    BALANCE=$(bitcoin-cli -testnet getbalance)
     echo "Balance actual: $BALANCE tBTC"
     if [ $(echo "$BALANCE > 0" | bc -l) -eq 1 ]; then
-        echo "Fondos recibidos"
+        echo "Fondos recibidos!"
         break
     fi
     sleep 30
 done
 ```
 
-### 2. Enviar Fondos al MultiSig
+**Proceso manual**: 
+1. Copia la dirección mostrada
+2. Ve a uno de los faucets
+3. Pega la dirección y solicita fondos
+4. Espera 10-30 minutos
+
+**Verificación**: Balance debe ser mayor a 0.
+
+## Envío al MultiSig
+
+### Qué estamos haciendo
+Enviamos parte de nuestros fondos a la dirección MultiSig. Esto "bloquea" los fondos hasta que los gastemos usando 2 de las 3 claves del MultiSig.
+
+### 1. Enviar Fondos al MultiSig
 
 ```bash
-# Obtener dirección MultiSig
-MULTISIG_ADDR=$(node multisig.js address)
-echo "Enviando fondos al MultiSig: $MULTISIG_ADDR"
-
-# Enviar usando Bitcoin Core (método que sabemos que funciona)
+# Enviar fondos al MultiSig usando Bitcoin Core
 SEND_AMOUNT=0.0005
 TXID_FUNDING=$(bitcoin-cli -testnet sendtoaddress $MULTISIG_ADDR $SEND_AMOUNT)
 
-echo "Transacción enviada al MultiSig:"
-echo "TXID: $TXID_FUNDING"
-echo "Amount: $SEND_AMOUNT tBTC"
+# Verificar que se envió
+if [ -n "$TXID_FUNDING" ]; then
+    echo "Transacción enviada al MultiSig:"
+    echo "TXID: $TXID_FUNDING"
+    echo "Amount: $SEND_AMOUNT tBTC"
+else
+    echo "ERROR: No se pudo enviar la transacción"
+    echo "Balance actual: $(bitcoin-cli -testnet getbalance)"
+    exit 1
+fi
+```
 
-# Esperar confirmación
+### 2. Esperar Confirmación
+
+```bash
+# Monitorear hasta que se confirme
 echo "Esperando confirmación..."
 while true; do
     TX_INFO=$(bitcoin-cli -testnet gettransaction "$TXID_FUNDING" 2>/dev/null || echo "{}")
@@ -188,42 +224,159 @@ while true; do
 done
 ```
 
-### 3. Encontrar UTXO del MultiSig
+**Verificación**: Debe mostrar TXID y luego confirmación exitosa.
 
+## Identificación del UTXO
+
+### Qué estamos haciendo
+Una transacción Bitcoin puede tener múltiples outputs (vout 0, vout 1, etc.). Necesitamos identificar cuál output contiene nuestros fondos del MultiSig para poder gastarlos.
+
+### 1. Detectar VOUT del MultiSig
+
+**Método Automático:**
 ```bash
-# Buscar UTXO usando el helper de JavaScript
-echo "Buscando UTXO del MultiSig..."
+# Intentar detección automática
+VOUT=$(bitcoin-cli -testnet gettransaction $TXID_FUNDING | jq -r --arg addr "$MULTISIG_ADDR" '.details[] | select(.address == $addr) | .vout')
 
-# Intentar vout 0 primero
-UTXO_INFO=$(node bitcoin-helper.js utxo $TXID_FUNDING 0 2>/dev/null || echo "null")
-
-if [ "$UTXO_INFO" = "null" ]; then
-    # Intentar vout 1
-    echo "Probando vout 1..."
-    UTXO_INFO=$(node bitcoin-helper.js utxo $TXID_FUNDING 1)
-    VOUT=1
+if [ -n "$VOUT" ] && [ "$VOUT" != "null" ]; then
+    echo "VOUT detectado automáticamente: $VOUT"
 else
-    VOUT=0
+    echo "Detección automática falló - procedimiento manual requerido"
 fi
-
-echo "UTXO encontrado:"
-echo "$UTXO_INFO"
-
-# Extraer amount en satoshis para usar con JavaScript
-AMOUNT_SATS=$(echo $UTXO_INFO | jq -r '.amount')
-echo "Amount en satoshis: $AMOUNT_SATS"
 ```
 
-## Gasto con JavaScript
+**Método Manual (cuando falla la automatización):**
+```bash
+# 1. Ver detalles de la transacción
+bitcoin-cli -testnet gettransaction $TXID_FUNDING | jq '.details'
+
+# 2. Buscar en el output la entrada que coincida con tu dirección MultiSig
+echo "Buscar la línea con address: $MULTISIG_ADDR"
+echo "Y anotar el número en 'vout': X"
+
+# 3. Asignar manualmente
+VOUT=0  # Reemplazar con el número que viste
+# O
+VOUT=1  # Si viste "vout": 1
+```
+
+**Ejemplo de interpretación:**
+```json
+[
+  {
+    "address": "tb1qjvelm8azc5z2gqx70fflwc9yxuy6xxmdxjcfs6358xguwfke0tqs7my58r",
+    "category": "send",
+    "amount": -0.0005,
+    "vout": 0,    ← Este número es tu VOUT
+    "fee": -1.53e-06
+  }
+]
+```
+
+### 2. Obtener Información del UTXO
+
+```bash
+# Verificar el UTXO existe y obtener detalles
+UTXO_INFO=$(bitcoin-cli -testnet gettxout $TXID_FUNDING $VOUT true)
+
+if [ "$UTXO_INFO" = "null" ] || [ -z "$UTXO_INFO" ]; then
+    echo "ERROR: UTXO no encontrado en vout $VOUT"
+    echo "Iniciando verificación manual..."
+    
+    # PROCEDIMIENTO MANUAL: Probar múltiples vout
+    echo "Probando vout 0:"
+    UTXO_0=$(bitcoin-cli -testnet gettxout $TXID_FUNDING 0 true 2>/dev/null || echo "null")
+    if [ "$UTXO_0" != "null" ]; then
+        ADDR_0=$(echo "$UTXO_0" | jq -r '.scriptPubKey.address')
+        VALUE_0=$(echo "$UTXO_0" | jq -r '.value')
+        echo "  Vout 0: $ADDR_0 ($VALUE_0 BTC)"
+    else
+        echo "  Vout 0: No encontrado"
+    fi
+    
+    echo "Probando vout 1:"
+    UTXO_1=$(bitcoin-cli -testnet gettxout $TXID_FUNDING 1 true 2>/dev/null || echo "null")
+    if [ "$UTXO_1" != "null" ]; then
+        ADDR_1=$(echo "$UTXO_1" | jq -r '.scriptPubKey.address')
+        VALUE_1=$(echo "$UTXO_1" | jq -r '.value')
+        echo "  Vout 1: $ADDR_1 ($VALUE_1 BTC)"
+    else
+        echo "  Vout 1: No encontrado"
+    fi
+    
+    echo ""
+    echo "Tu dirección MultiSig: $MULTISIG_ADDR"
+    echo ""
+    echo "ASIGNACIÓN MANUAL REQUERIDA:"
+    echo "Compara tu dirección MultiSig con las direcciones encontradas arriba"
+    echo "Si vout 0 coincide: VOUT=0"
+    echo "Si vout 1 coincide: VOUT=1"
+    echo "Luego ejecuta: UTXO_INFO=\$(bitcoin-cli -testnet gettxout \$TXID_FUNDING \$VOUT true)"
+    exit 1
+fi
+
+# Verificar que la dirección del UTXO coincida con el MultiSig
+UTXO_ADDRESS=$(echo $UTXO_INFO | jq -r '.scriptPubKey.address')
+if [ "$UTXO_ADDRESS" != "$MULTISIG_ADDR" ]; then
+    echo "ERROR: Dirección del UTXO no coincide con MultiSig"
+    echo "UTXO dirección: $UTXO_ADDRESS"
+    echo "MultiSig esperado: $MULTISIG_ADDR"
+    echo ""
+    echo "SOLUCIÓN MANUAL:"
+    echo "1. Verificar que VOUT sea correcto"
+    echo "2. Verificar detalles de transacción:"
+    echo "   bitcoin-cli -testnet gettransaction $TXID_FUNDING | jq '.details'"
+    echo "3. Asignar VOUT correcto y volver a intentar"
+    exit 1
+fi
+
+echo "UTXO encontrado y verificado:"
+echo "$UTXO_INFO"
+
+# Extraer amount en satoshis para JavaScript
+AMOUNT_SATS=$(echo $UTXO_INFO | jq -r '.value * 100000000 | floor')
+echo "Amount en satoshis: $AMOUNT_SATS"
+
+# Verificación adicional del amount
+if [ "$AMOUNT_SATS" -lt 10000 ]; then
+    echo "ADVERTENCIA: Amount muy pequeño ($AMOUNT_SATS sats)"
+    echo "Verificar que sea el UTXO correcto"
+    echo "Amount esperado debería ser cercano a 50000 sats si enviaste 0.0005 tBTC"
+    
+    echo ""
+    echo "VERIFICACIÓN MANUAL DEL AMOUNT:"
+    echo "1. ¿Enviaste 0.0005 tBTC al MultiSig? Debería ser ~50000 sats"
+    echo "2. ¿El VOUT es correcto?"
+    echo "3. ¿La dirección coincide con tu MultiSig?"
+    
+    read -p "¿Continuar de todas formas? (y/n): " confirm
+    if [ "$confirm" != "y" ]; then
+        exit 1
+    fi
+fi
+
+echo "UTXO verificado correctamente:"
+echo "- TXID: $TXID_FUNDING"
+echo "- VOUT: $VOUT"  
+echo "- Dirección: $UTXO_ADDRESS"
+echo "- Amount: $AMOUNT_SATS satoshis"
+```
+
+**Verificación**: Debe mostrar información del UTXO con la dirección MultiSig correcta.
+
+## Gasto desde MultiSig
+
+### Qué estamos haciendo
+Aquí usamos JavaScript para crear y firmar una transacción que gasta desde el MultiSig. Bitcoin Core no puede hacer esto solo, pero JavaScript con bitcoinjs-lib sí puede manejar las firmas MultiSig SegWit.
 
 ### 1. Crear Dirección de Destino
 
 ```bash
-# Generar dirección de destino
-DESTINO=$(node bitcoin-helper.js address destino_final)
+# Generar dirección donde enviaremos los fondos
+DESTINO=$(bitcoin-cli -testnet getnewaddress "destino_final" "bech32")
 echo "Dirección de destino: $DESTINO"
 
-# Calcular amount a enviar (restar fee de 15000 sats)
+# Calcular amount a enviar (restar fee)
 FEE_SATS=15000
 SEND_AMOUNT_SATS=$((AMOUNT_SATS - FEE_SATS))
 
@@ -236,190 +389,147 @@ echo "- Fee: $FEE_SATS sats"
 ### 2. Crear y Firmar Transacción MultiSig
 
 ```bash
-# Usar JavaScript para crear y firmar la transacción MultiSig
+# Usar JavaScript para crear y firmar la transacción
 echo "Creando transacción MultiSig con JavaScript..."
-
 node multisig.js spend $TXID_FUNDING $VOUT $AMOUNT_SATS $DESTINO $SEND_AMOUNT_SATS
-
-# El script mostrará:
-# - Detalles de la transacción
-# - Proceso de firma con 2 claves
-# - Hex de la transacción final
-# - Comando para transmitir
-
-echo "Copia el hex de la transacción del output anterior"
 ```
 
-### 3. Transmitir con Bitcoin Core
+**Qué sucede**: JavaScript carga las claves privadas, construye una transacción PSBT (Partially Signed Bitcoin Transaction), la firma con 2 de las 3 claves (suficiente para 2-of-3), y produce una transacción completa lista para transmitir.
+
+**Resultado esperado**: Verás el proceso de firma y un comando `bitcoin-cli sendrawtransaction` al final.
+
+### 3. Transmitir Transacción
 
 ```bash
-# El script anterior mostrará algo como:
-# "Para transmitir: bitcoin-cli -testnet sendrawtransaction 02000000..."
-
-# Ejecutar el comando mostrado (ejemplo):
-TX_HEX="02000000..." # Pegar aquí el hex completo del output anterior
+# Copiar el hex completo del output anterior y usarlo así:
+TX_HEX="020000000001..."  # Pegar el hex completo aquí
 
 # Transmitir usando Bitcoin Core
 FINAL_TXID=$(bitcoin-cli -testnet sendrawtransaction $TX_HEX)
 
-echo "Transacción MultiSig transmitida exitosamente"
-echo "TXID final: $FINAL_TXID"
+echo "Transacción MultiSig transmitida: $FINAL_TXID"
 echo "Verificar en: https://blockstream.info/testnet/tx/$FINAL_TXID"
-
-# Verificar confirmación
-echo "Esperando confirmación de la transacción final..."
-sleep 300
-bitcoin-cli -testnet gettransaction "$FINAL_TXID" | jq '{confirmations, amount, fee}'
 ```
+
+**Verificación**: Debe mostrar un TXID de la transacción exitosa.
 
 ## Verificación Final
 
-### 1. Verificar Estado Completo
+### Qué estamos haciendo
+Confirmamos que todo el proceso funcionó correctamente verificando que los fondos llegaron al destino y revisando el balance final.
 
 ```bash
-# Verificación completa del sistema
-node verify.js
-
-# Verificar balance final
-echo "=== BALANCE FINAL ==="
-node bitcoin-helper.js balance
+# Verificar balance final del wallet
+echo "=== VERIFICACIÓN FINAL ==="
+FINAL_BALANCE=$(bitcoin-cli -testnet getbalance)
+echo "Balance final del wallet: $FINAL_BALANCE tBTC"
 
 # Verificar que los fondos llegaron al destino
-echo "=== VERIFICACIÓN DESTINO ==="
-DEST_UTXOS=$(node bitcoin-helper.js listutxos 0 999999)
-echo "$DEST_UTXOS" | jq --arg addr "$DESTINO" '.[] | select(.address == $addr)'
+DEST_UTXO=$(bitcoin-cli -testnet listunspent 0 999999 | jq --arg addr "$DESTINO" '.[] | select(.address == $addr)')
 
-# Resumen de la operación
-echo "=== RESUMEN OPERACIÓN ==="
+if [ -n "$DEST_UTXO" ] && [ "$DEST_UTXO" != "null" ]; then
+    DEST_AMOUNT=$(echo "$DEST_UTXO" | jq -r '.amount')
+    echo "✅ Fondos recibidos en destino: $DEST_AMOUNT tBTC"
+else
+    echo "⏳ Fondos aún no confirmados en destino"
+fi
+
+# Resumen completo del tutorial
+echo ""
+echo "=== RESUMEN TUTORIAL COMPLETADO ==="
 echo "MultiSig Address: $MULTISIG_ADDR"
 echo "TXID Funding: $TXID_FUNDING"
 echo "TXID Final: $FINAL_TXID"
-echo "Dirección Destino: $DESTINO"
-echo "Amount MultiSig: $AMOUNT_SATS sats"
-echo "Amount Enviado: $SEND_AMOUNT_SATS sats"
-echo "Fee Usado: $FEE_SATS sats"
+echo "Destino: $DESTINO"
+echo "Amount enviado: $SEND_AMOUNT_SATS sats"
+echo "Fee usado: $FEE_SATS sats"
+echo ""
+echo "✅ Tutorial MultiSig híbrido completado exitosamente"
 ```
 
-### 2. Estado de Archivos Generados
+## Uso en Producción
 
+### Diferencias Importantes para Uso Real
+
+**En este tutorial (prueba):**
+- Todas las claves están en la misma máquina
+- Usamos testnet (sin valor real)
+- Un solo usuario controla las 3 claves
+- Configuración simple para aprendizaje
+
+**En producción real:**
+
+#### 1. Separación de Claves
 ```bash
-# Verificar archivos del proyecto
-echo "=== ARCHIVOS GENERADOS ==="
-ls -la *.json *.js
+# Cada participante en su propia máquina/dispositivo
+Participante 1: Genera su clave en su dispositivo
+Participante 2: Genera su clave en su dispositivo  
+Participante 3: Genera su clave en su dispositivo
 
-echo "=== CONTENIDO KEYS.JSON ==="
-cat keys.json | jq '.keyPairs | length'
-
-echo "=== CONTENIDO MULTISIG.JSON ==="
-cat multisig.json | jq '{address, witnessScript}'
-
-echo "Tutorial híbrido completado exitosamente"
+# Intercambio SOLO de claves públicas (nunca privadas)
+# Cada uno crea la misma dirección MultiSig usando las 3 claves públicas
 ```
 
-## Comandos de Referencia
-
-### Bitcoin Helper (Interfaz con Bitcoin Core)
-
+#### 2. Uso de Hardware Wallets
 ```bash
-# Estado del nodo
-node bitcoin-helper.js status
-
-# Balance del wallet
-node bitcoin-helper.js balance
-
-# Nueva dirección
-node bitcoin-helper.js address [label]
-
-# Información de UTXO
-node bitcoin-helper.js utxo <txid> <vout>
-
-# Información de transacción
-node bitcoin-helper.js transaction <txid>
-
-# Listar UTXOs
-node bitcoin-helper.js listutxos [minConf] [maxConf]
-
-# Transmitir transacción
-node bitcoin-helper.js broadcast <hex>
-
-# Información de blockchain
-node bitcoin-helper.js blockinfo
+# En lugar de claves en archivos de texto:
+# - Ledger, Trezor, Coldcard para cada participante
+# - Claves nunca salen del dispositivo
+# - Firmas se hacen en el hardware wallet
 ```
 
-### MultiSig Manager
-
+#### 3. Coordinación con PSBTs
 ```bash
-# Generar claves y crear MultiSig
-node multisig.js generate
-
-# Mostrar dirección MultiSig
-node multisig.js address
-
-# Crear transacción de gasto
-node multisig.js spend <txid> <vout> <amount> <destination> <sendAmount>
+# Flujo de firma distribuida:
+# 1. Participante A crea PSBT
+# 2. Participante A firma y pasa a B
+# 3. Participante B firma y pasa a C (si es necesario)
+# 4. Cualquiera transmite la transacción final
 ```
 
-### Verificación y Troubleshooting
-
+#### 4. Mainnet (Red Principal)
 ```bash
-# Verificación completa
-node verify.js
+# Cambiar configuración a mainnet:
+# bitcoin.conf:
+# testnet=0  # o remover la línea
+# prune=2000  # opcional en mainnet también
 
-# Verificación rápida
-node verify.js quick
-
-# Mostrar tutorial
-node verify.js tutorial
+# IMPORTANTE: Testear exhaustivamente en testnet primero
 ```
 
-## Ventajas del Enfoque Híbrido
+#### 5. Mejores Prácticas de Seguridad
 
-### Bitcoin Core maneja:
-- Sincronización con la red Bitcoin
-- Gestión de fondos para faucet
-- Consulta de UTXOs y transacciones
-- Transmisión de transacciones finales
-- Operaciones que funcionan bien nativamente
+**Backup y Recuperación:**
+- Cada participante debe tener backup de su clave privada
+- Guardar el redeemScript/witnessScript por separado
+- Documentar el esquema MultiSig (2-of-3, direcciones, etc.)
+- Probar recuperación en testnet antes de usar en mainnet
 
-### JavaScript maneja:
-- Creación de MultiSig SegWit P2WSH
-- Firma de transacciones MultiSig complejas
-- Operaciones criptográficas avanzadas
-- Lógica que fallaba en Bitcoin Core
+**Verificación:**
+- Verificar direcciones en múltiples dispositivos
+- Confirmar amounts múltiples veces antes de transmitir
+- Usar exploradores de blockchain para verificar transacciones
 
-### Resultado:
-- Tutorial funcional completo de principio a fin
-- Aprovecha las fortalezas de ambas tecnologías
-- Evita las limitaciones de cada enfoque individual
-- Proceso educativo sobre ambas implementaciones
+**Gestión de Claves:**
+- Nunca compartir claves privadas
+- Usar derivation paths diferentes para cada MultiSig
+- Considerar usar Shamir Secret Sharing para backups
+- Rotación periódica de MultiSigs para grandes cantidades
 
-## Troubleshooting Común
+#### 6. Herramientas Profesionales
 
-### Error: "bitcoin-cli command not found"
-```bash
-# Verificar que Bitcoin Core esté instalado y en PATH
-which bitcoin-cli
-bitcoind -version
-```
+Para uso serio, considerar:
+- **Sparrow Wallet**: Interfaz gráfica para MultiSig
+- **Electrum**: Soporte robusto para MultiSig
+- **BTCPay Server**: Para comercios
+- **Specter Desktop**: Especializado en MultiSig con hardware wallets
 
-### Error: "Cannot connect to Bitcoin Core"
-```bash
-# Verificar que el daemon esté corriendo
-bitcoin-cli -testnet getblockchaininfo
-# Si falla, reiniciar:
-bitcoind -testnet -daemon
-```
+### Limitaciones del Tutorial
 
-### Error: "Module not found: bitcoinjs-lib"
-```bash
-# Reinstalar dependencias
-npm install bitcoinjs-lib
-```
+Este tutorial es educativo y demuestra conceptos fundamentales. Para uso en producción:
+- Auditar el código JavaScript antes de usar con fondos reales
+- Implementar validación adicional de transacciones
+- Usar bibliotecas más recientes y mantenidas
+- Considerar aspectos legales y de cumplimiento según tu jurisdicción
 
-### Error: "No se pudieron cargar las claves"
-```bash
-# Regenerar claves si se perdieron
-node multisig.js generate
-```
-
-Este enfoque híbrido combina la robustez de Bitcoin Core para infraestructura con la flexibilidad de JavaScript para operaciones MultiSig complejas, resultando en un tutorial completamente funcional.
+El MultiSig es una herramienta poderosa para seguridad, pero requiere comprensión profunda y prácticas de seguridad rigurosas para uso seguro con fondos reales.
