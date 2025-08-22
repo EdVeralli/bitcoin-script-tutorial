@@ -635,3 +635,202 @@ Para analizar en profundidad cualquier transacción MultiSig:
 4. **Analizador de witness**: Para entender la estructura del witness
 
 Este nivel de análisis es crucial para entender vulnerabilidades, optimizaciones, y el funcionamiento interno del protocolo Bitcoin.
+
+---
+
+# 📚 APÉNDICE: La Máquina Virtual de Bitcoin (Bitcoin VM)
+
+## ¿Qué es la VM de Bitcoin?
+
+La **VM de Bitcoin** (Virtual Machine) es el motor de ejecución de scripts que forma parte del software de cada nodo Bitcoin. Es el componente que:
+
+### 🧠 Función Principal:
+- **Ejecuta y valida scripts** de Bitcoin para determinar si una transacción es válida
+- **Procesa opcodes** uno por uno siguiendo reglas estrictas
+- **Mantiene un stack** (pila) para operaciones
+- **Devuelve TRUE o FALSE** según si el script se ejecuta exitosamente
+
+### 🔧 Características Técnicas:
+
+**Stack-based (Basada en pila):**
+```
+Stack: [elemento1, elemento2, elemento3]
+        ↑
+    Último elemento (top)
+```
+
+**Determinística:**
+- Mismo input = mismo output, siempre
+- No hay randomness ni operaciones impredecibles
+
+**Limitada intencionalmente:**
+- No es Turing-completa (no puede hacer loops infinitos)
+- Máximo 201 opcodes por script
+- Stack limitado a 1000 elementos
+- Operaciones aritméticas limitadas
+
+### 🏗️ Arquitectura:
+
+```
+┌─────────────────────────────────────┐
+│            NODO BITCOIN             │
+├─────────────────────────────────────┤
+│  ┌─────────────────────────────┐    │
+│  │        BITCOIN VM           │    │
+│  │  ┌─────────────────────┐    │    │
+│  │  │     Stack Engine    │    │    │
+│  │  │   [val3, val2, val1]│    │    │
+│  │  └─────────────────────┘    │    │
+│  │  ┌─────────────────────┐    │    │
+│  │  │   Opcode Processor  │    │    │
+│  │  │  OP_DUP, OP_HASH... │    │    │
+│  │  └─────────────────────┘    │    │
+│  │  ┌─────────────────────┐    │    │
+│  │  │ Validation Engine   │    │    │
+│  │  │   TRUE/FALSE        │    │    │
+│  │  └─────────────────────┘    │    │
+│  └─────────────────────────────┘    │
+└─────────────────────────────────────┘
+```
+
+### 📋 Ejemplo de Ejecución:
+
+Para un script simple P2PKH:
+```
+ScriptPubKey: OP_DUP OP_HASH160 <pubkeyHash> OP_EQUALVERIFY OP_CHECKSIG
+ScriptSig:    <signature> <publicKey>
+```
+
+**Ejecución paso a paso:**
+```
+Inicio: [signature, publicKey]
+
+1. OP_DUP:        [signature, publicKey, publicKey]
+2. OP_HASH160:    [signature, publicKey, hash(publicKey)]
+3. <pubkeyHash>:  [signature, publicKey, hash(publicKey), pubkeyHash]
+4. OP_EQUALVERIFY: [signature, publicKey] (si hash coincide)
+5. OP_CHECKSIG:   [TRUE] (si firma es válida)
+```
+
+### 🚫 Limitaciones de Seguridad:
+
+**Lo que NO puede hacer:**
+- Acceder a internet o archivos
+- Operaciones de red
+- Loops infinitos
+- Operaciones de fecha/tiempo
+- Acceso a memoria arbitraria
+- Operaciones no determinísticas
+
+**Por qué está limitada:**
+- **Consenso**: Todos los nodos deben llegar al mismo resultado
+- **Seguridad**: Prevenir ataques DoS
+- **Predictibilidad**: Evitar comportamientos inesperados
+
+### 🎯 En el contexto del MultiSig:
+
+En nuestro ejemplo, la VM:
+
+1. **Recibe el witness:**
+   ```
+   ["", firma1, firma2, witnessScript]
+   ```
+
+2. **Valida el hash del script:**
+   ```python
+   if sha256(witnessScript) == expected_hash:
+       continue_execution()
+   ```
+
+3. **Ejecuta el witnessScript:**
+   ```
+   OP_2 → push 2
+   OP_PUSHDATA → push key1
+   OP_PUSHDATA → push key2  
+   OP_PUSHDATA → push key3
+   OP_3 → push 3
+   OP_CHECKMULTISIG → validate signatures
+   ```
+
+4. **Devuelve resultado:**
+   ```
+   Stack final: [TRUE] → Transacción válida
+   ```
+
+### 🔄 Comparación con otras VMs:
+
+| Aspecto | Bitcoin VM | Ethereum VM | JVM |
+|---------|------------|-------------|-----|
+| **Propósito** | Validar transacciones | Smart contracts | Ejecutar Java |
+| **Complejidad** | Simple | Compleja | Muy compleja |
+| **Turing-complete** | ❌ | ✅ | ✅ |
+| **Gas/Fees** | Implícito | Explícito | N/A |
+| **Persistencia** | Solo UTXO | Estado global | Memoria/disco |
+
+### 💡 Puntos Clave:
+
+1. **Cada nodo tiene su VM**: No es un servicio centralizado
+2. **Ejecuta durante validación**: Solo cuando se valida una transacción
+3. **Determinística**: Fundamental para el consenso
+4. **Limitada por diseño**: Seguridad sobre funcionalidad
+5. **Stack-based**: Diferente a VMs register-based
+
+### 🔍 Opcodes Más Comunes:
+
+| Opcode | Hex | Descripción | Ejemplo de uso |
+|--------|-----|-------------|----------------|
+| `OP_0` | `00` | Push bytes vacío | Witness version |
+| `OP_1` a `OP_16` | `51-60` | Push números 1-16 | Conteos, versiones |
+| `OP_DUP` | `76` | Duplicar top del stack | P2PKH validation |
+| `OP_HASH160` | `a9` | RIPEMD160(SHA256(x)) | Address hashing |
+| `OP_EQUAL` | `87` | Comparar dos elementos | Hash verification |
+| `OP_CHECKSIG` | `ac` | Verificar firma ECDSA | Firma única |
+| `OP_CHECKMULTISIG` | `ae` | Verificar múltiples firmas | MultiSig |
+| `OP_PUSHDATA1` | `4c` | Push 1-75 bytes | Datos pequeños |
+| `OP_PUSHDATA2` | `4d` | Push hasta 520 bytes | Scripts, claves |
+
+### 🚨 Casos Especiales y Bugs:
+
+**Bug de OP_CHECKMULTISIG:**
+- Consume un elemento extra del stack (el "dummy element")
+- Requiere un `""` vacío al inicio del witness
+- Comportamiento preservado por compatibilidad
+
+**Límites de validación:**
+- Script máximo: 10,000 bytes
+- Stack máximo: 1,000 elementos
+- Operaciones máximas: 201 opcodes
+
+### 🎭 Estados de la VM:
+
+```python
+class BitcoinVM:
+    def __init__(self):
+        self.stack = []
+        self.alt_stack = []
+        self.script_pos = 0
+        self.opcode_count = 0
+        self.execution_result = None
+    
+    def execute_script(self, script, witness_data=None):
+        # Inicializar stack con witness (si P2WSH)
+        if witness_data:
+            self.stack = witness_data[:-1]  # Todo excepto el script
+            script = witness_data[-1]       # Último elemento es el script
+        
+        # Ejecutar cada opcode
+        for opcode in parse_script(script):
+            if self.opcode_count >= 201:
+                return False  # Límite excedido
+            
+            result = self.execute_opcode(opcode)
+            if not result:
+                return False
+                
+            self.opcode_count += 1
+        
+        # Script válido si stack tiene exactamente un TRUE
+        return len(self.stack) == 1 and self.stack[0] == True
+```
+
+La VM de Bitcoin es intencionalmente "aburrida" y predecible - esto es una característica, no un defecto. Su simplicidad garantiza que el consenso sea posible y que el sistema sea seguro y predecible, siendo el fundamento sobre el cual se ejecutan todas las validaciones de transacciones en la red Bitcoin.
