@@ -1,0 +1,13 @@
+
+cat > ~/.bitcoin/bitcoin.conf << 'EOF'
+testnet=1
+server=1
+rpcuser=edveralli
+rpcpassword=Sesamo777
+prune=2000
+fallbackfee=0.00001
+maxconnections=40
+EOF
+
+
+cat ~/.bitcoin/bitcoin.conf
